@@ -1,0 +1,146 @@
+# Region routing configuration.
+#
+# Each Docling layout label (DocItemLabel; see docling_core/types/doc/labels.py)
+# maps to a cascade `ladder`: the ordered list of engines to try, cheapest /
+# best-suited first. The mini-cascade for a region stops at the first engine
+# whose confidence meets --threshold; otherwise it escalates to the next rung.
+#
+# Labels not listed here fall back to the `_default` ladder.
+#
+# rationale / citation fields are optional. They record WHY this label routes
+# the way it does so a future contributor can second-guess each decision
+# instead of guessing. Citations reference published benchmarks where possible.
+
+handwritten_text:
+  ladder: [glm-ocr]
+  rationale: >
+    Only a vision-language model produces usable handwriting transcription.
+    Tesseract, PaddleOCR and Docling all return <60% confidence and garbled
+    text on hand-written content. No other installed engine is a useful
+    fallback for handwriting, so this is a single-rung ladder.
+  citation: >
+    ZhipuAI glm-ocr model card: #1 on OmniDocBench V1.5 (94.62/100, MIT).
+
+text:
+  ladder: [tesseract, merge-tess-paddle, glm-ocr]
+  rationale: >
+    Tesseract 5 LSTM is fast (~12 s/pg) and accurate on clean printed text.
+    merge-tess-paddle is a second-opinion pass that runs PaddleOCR PP-OCRv4 EN
+    and splices its characters into Tesseract's word-bbox layout — catches
+    typewriter-era / scan-noise errors Tesseract makes while keeping correct
+    whitespace. glm-ocr is the heavy fallback for degraded scans (handwriting
+    mixed in, severe skew, etc.).
+  citation: >
+    Tesseract 5 ICDAR/NEOCR benchmarks; PP-OCRv4 model card on PaddlePaddle.
+
+title:
+  ladder: [tesseract, merge-tess-paddle]
+
+section_header:
+  ladder: [tesseract, merge-tess-paddle]
+
+page_header:
+  ladder: [tesseract]
+  rationale: >
+    PACER / court headers are machine-printed boilerplate. Tesseract handles
+    them at >90% confidence; no fallback needed in practice.
+
+page_footer:
+  ladder: [tesseract]
+
+list_item:
+  ladder: [tesseract, merge-tess-paddle, glm-ocr]
+
+caption:
+  ladder: [tesseract, merge-tess-paddle]
+
+footnote:
+  ladder: [tesseract, merge-tess-paddle]
+
+table:
+  ladder: [docling, paddleocr, glm-ocr]
+  rationale: >
+    Docling's TableFormer is purpose-built for table structure (97.9% on
+    FinTabNet, 90.1% on PubTabNet). PP-Structure has a working but coarser
+    table head as the second rung. glm-ocr is the final fallback because
+    Docling sometimes mis-labels handwritten forms / notes as `table` when
+    ruled lines or grid structure dominate the page — without glm-ocr the
+    cascade dead-ends at PaddleOCR's low confidence and emits garbage. The
+    ordering keeps the printed-table fast path intact: if Docling or PaddleOCR
+    clear the threshold we never run the VLM.
+  citation: >
+    IBM Docling tech report (2024); TableFormer FinTabNet / PubTabNet results.
+
+picture:
+  ladder: [glm-ocr]
+  rationale: >
+    Pictures may include signatures, stamps, charts, or arbitrary text-in-
+    image content. Vision-language models can transcribe these; text-only
+    OCR engines cannot. Docling also occasionally mis-labels handwriting
+    blocks as `picture`, which this routing handles gracefully.
+  citation: >
+    glm-ocr OmniDocBench V1.5 image/chart subset performance.
+
+chart:
+  ladder: [glm-ocr]
+
+formula:
+  ladder: [glm-ocr, docling]
+
+code:
+  ladder: [tesseract, glm-ocr]
+
+key_value_region:
+  ladder: [docling, tesseract, glm-ocr]
+  rationale: >
+    Forms and key-value blocks are usually printed; Docling parses them
+    structurally and Tesseract reads them cheaply. glm-ocr is added as a
+    final rung because Docling sometimes labels handwriting blocks as
+    `key_value_region`.
+
+form:
+  ladder: [docling, tesseract, glm-ocr]
+
+document_index:
+  ladder: [docling, tesseract]
+
+checkbox_selected:
+  ladder: [tesseract]
+
+checkbox_unselected:
+  ladder: [tesseract]
+
+grading_scale:
+  ladder: [glm-ocr]
+
+empty_value:
+  ladder: []
+
+marker:
+  ladder: [tesseract]
+
+paragraph:
+  ladder: [tesseract, merge-tess-paddle, glm-ocr]
+
+reference:
+  ladder: [tesseract, merge-tess-paddle]
+
+_uncovered:
+  ladder: [tesseract, merge-tess-paddle, glm-ocr, docling, chandra]
+  rationale: >
+    Synthetic regions covering page area Docling left unlabeled. Tesseract
+    is the cheap first try (fine on clean printed scans). If it fails the
+    threshold, merge-tess-paddle runs both Tesseract and PaddleOCR and
+    splices them — PaddleOCR's character accuracy with Tesseract's word-bbox
+    whitespace. glm-ocr / Docling / Chandra are progressively heavier
+    fallbacks. We use merge instead of plain PaddleOCR here because on
+    typewriter-era scans PaddleOCR's character accuracy is materially better
+    than Tesseract's but its inter-token spacing is unreliable; splicing
+    with Tesseract's word bboxes restores the whitespace.
+
+_default:
+  ladder: [tesseract, merge-tess-paddle, glm-ocr]
+  rationale: >
+    Generic three-rung cascade: fast accurate first, merge-tess-paddle as
+    second opinion (PaddleOCR chars + Tesseract whitespace), heavy VLM last.
+    Mirrors the same shape as the text-region routing.

@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.Python
+
+# Virtualenv (local-only) — match dir, symlink, or file form
+venv
+.venv
+env
+
+# Test corpus (large, not part of the codebase) — match dir or symlink
+test_docs
+
+# Per-job artifacts written by the FastAPI server
+runs
+
+# Older CLI test outputs
+results
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs and temp PDFs
+*.log
+*.tmp
+*.bak
+.cache/
+.ipynb_checkpoints/

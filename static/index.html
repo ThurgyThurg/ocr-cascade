@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cascade · OCR Pipeline</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script>
+  // Apply the saved theme before paint to avoid a flash. localStorage:
+  // "light" | "dark"; default follows prefers-color-scheme.
+  (function () {
+    try {
+      var t = localStorage.getItem("cascade-theme");
+      if (!t) {
+        t = window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark" : "light";
+      }
+      if (t === "dark") document.documentElement.setAttribute("data-theme", "dark");
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="/static/app.css">
+
+<!-- pdf.js (ESM) -->
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.mjs" type="module"></script>
+<!-- JSZip MUST load before docx-preview — the UMD bundle reads window.JSZip
+     at evaluation time and silently breaks unzip if it's missing. -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx-preview@0.3.5/dist/docx-preview.min.js"></script>
+</head>
+<body>
+
+<!-- ─────────────────────────────────────────────────────────── masthead ── -->
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="seal">
+      <span class="seal-mark">§</span>
+      <div class="seal-text">
+        <div class="seal-name">Cascade</div>
+        <div class="seal-sub">OCR Pipeline · Local Server</div>
+      </div>
+    </div>
+    <nav class="masthead-actions">
+      <button class="lamp-btn" id="theme-toggle" title="Toggle lamplight" aria-label="Toggle theme">
+        <svg class="lamp-sun"  viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        <svg class="lamp-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="lex-btn" id="settings-btn">
+        <span class="lex-btn-eyebrow">III.</span>
+        <span>Cascade Rules</span>
+      </button>
+      <button class="lex-btn primary" id="new-job-btn">
+        <span>File a new document</span>
+        <span class="lex-arrow">→</span>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<!-- ───────────────────────────────────────────────────── two-column layout ── -->
+<div class="page">
+
+  <!-- ─────────────────────────────────────────────────────────── docket ── -->
+  <aside class="docket">
+    <div class="docket-head">
+      <span class="eyebrow">Docket</span>
+      <span class="docket-count" id="docket-count">—</span>
+    </div>
+    <div class="docket-list" id="docket-list">
+      <div class="docket-empty">No filings yet.</div>
+    </div>
+  </aside>
+
+  <!-- ─────────────────────────────────────────────────────────────── canvas ── -->
+  <main class="canvas">
+    <!-- The gutter is purely cosmetic + counters; line numbers are emitted via
+         CSS counters on .anchor elements inside each view. -->
+    <div class="canvas-gutter left" aria-hidden="true"></div>
+    <div class="canvas-gutter right" aria-hidden="true"></div>
+
+    <div class="canvas-inner">
+
+      <!-- ──────────────────────────────── view: intake (idle) ── -->
+      <section class="view view-intake" id="view-upload">
+        <header class="view-head anchor">
+          <div class="eyebrow">I.</div>
+          <h1 class="view-title">Document intake</h1>
+          <p class="view-sub">Drop a filing or pick a folder. Each PDF runs through the engine cascade on this machine.</p>
+        </header>
+
+        <div class="caption-block anchor" id="drop-zone">
+          <span class="bracket tl"></span><span class="bracket tr"></span>
+          <span class="bracket bl"></span><span class="bracket br"></span>
+          <input type="file" id="file-input"   accept=".pdf" multiple hidden>
+          <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
+
+          <div class="drop-glyph">
+            <svg viewBox="0 0 32 32" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 4v18M9 15l7 7 7-7M5 28h22"/>
+            </svg>
+          </div>
+          <div class="drop-line">
+            Drop a filing here, or <button class="link" id="browse-btn" type="button">browse</button>
+          </div>
+          <div class="drop-aside">
+            …or <button class="link" id="folder-btn" type="button">file a folder</button> for batch intake.
+          </div>
+          <div class="drop-summary" id="file-summary"></div>
+        </div>
+
+        <dl class="docket-form anchor">
+          <dt>Engine</dt>
+          <dd>
+            <div class="seg" data-name="mode">
+              <button type="button" data-value="regions" class="active">Regions</button>
+              <button type="button" data-value="cascade">Cascade</button>
+            </div>
+            <p class="hint">Regions detects layout first, then routes each block to its own ladder. Cascade runs one engine over the whole page.</p>
+          </dd>
+
+          <dt>Threshold</dt>
+          <dd>
+            <div class="threshold">
+              <input type="range" id="threshold-slider" min="50" max="99" value="90" step="1">
+              <input type="number" id="threshold-input" min="50" max="99" value="90" step="1">
+              <span class="suffix">%</span>
+            </div>
+            <p class="hint">The cascade stops at the first engine that clears this.</p>
+          </dd>
+
+          <dt>Acceleration</dt>
+          <dd>
+            <label class="check">
+              <input type="checkbox" id="gpu-checkbox">
+              <span class="check-box"></span>
+              <span class="check-label">Use CUDA</span>
+            </label>
+          </dd>
+        </dl>
+
+        <div class="actions anchor">
+          <button class="lex-btn filed" id="submit-btn" disabled>
+            <span>File →</span>
+          </button>
+          <span class="muted small" id="actions-hint">Pick a document first.</span>
+        </div>
+      </section>
+
+      <!-- ──────────────────────────────── view: processing ────────────── -->
+      <section class="view view-processing" id="view-progress" hidden>
+        <header class="view-head anchor">
+          <div class="eyebrow">II.</div>
+          <h1 class="view-title">Processing</h1>
+          <p class="view-sub" id="progress-filename">Filing…</p>
+        </header>
+
+        <div class="status-strip anchor">
+          <span class="status-pill" id="progress-status">In progress</span>
+        </div>
+
+        <div class="redaction-notice anchor" id="redaction-banner" hidden>
+          <span class="redaction-mark"></span>
+          <div class="redaction-text">
+            <span class="redaction-head">Redactions noted</span>
+            <span class="redaction-breakdown" id="redaction-breakdown"></span>
+          </div>
+        </div>
+
+        <!-- regions trace -->
+        <section class="trace anchor" id="progress-regions" hidden>
+          <div class="trace-head">
+            <span>Regions traced</span>
+            <span class="muted small" id="progress-region-count"></span>
+          </div>
+          <div class="region-list" id="region-list"></div>
+          <div class="meter">
+            <span class="meter-label">Page confidence</span>
+            <div class="meter-rail"><div class="meter-ink" id="region-meter-fill"></div></div>
+            <span class="meter-num" id="region-meter-pct">—</span>
+          </div>
+        </section>
+
+        <!-- cascade trace -->
+        <section class="trace anchor" id="progress-cascade" hidden>
+          <div class="trace-head">
+            <span>Engine cascade</span>
+          </div>
+          <ol class="engine-ladder" id="engine-ladder"></ol>
+          <div class="meter">
+            <span class="meter-label">Current engine</span>
+            <div class="meter-rail"><div class="meter-ink" id="meter-fill"></div></div>
+            <span class="meter-num" id="meter-pct">—</span>
+          </div>
+          <div class="escalate" id="escalate-msg" hidden></div>
+        </section>
+      </section>
+
+      <!-- ──────────────────────────────── view: batch ─────────────────── -->
+      <section class="view view-batch" id="view-batch" hidden>
+        <header class="view-head anchor">
+          <div class="eyebrow">II.</div>
+          <h1 class="view-title">Batch intake</h1>
+          <p class="view-sub">Filings run one after another.</p>
+        </header>
+
+        <div class="redaction-notice anchor" id="batch-redaction-banner" hidden>
+          <span class="redaction-mark"></span>
+          <div class="redaction-text">
+            <span class="redaction-head">Redactions noted</span>
+            <span class="redaction-breakdown" id="batch-redaction-breakdown"></span>
+          </div>
+        </div>
+
+        <ol class="batch-list anchor" id="batch-list"></ol>
+
+        <div class="actions anchor">
+          <button class="lex-btn primary" id="batch-zip-btn" hidden>
+            <span>Bundle (.zip)</span>
+            <span class="lex-arrow">↓</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ──────────────────────────────── view: review (viewer) ──────── -->
+      <section class="view view-review" id="view-viewer" hidden>
+        <header class="view-head review-head anchor">
+          <div class="eyebrow">III.</div>
+          <h1 class="view-title" id="viewer-filename">Review</h1>
+          <div class="review-meta">
+            <span class="docket-id" id="viewer-conf">—</span>
+            <span class="muted small" id="viewer-engines">—</span>
+            <button class="lex-btn small" id="viewer-download-docx" hidden>
+              <span>Take .docx</span>
+              <span class="lex-arrow">↓</span>
+            </button>
+            <button class="lex-btn small ghost" id="viewer-download-txt" hidden>
+              <span>.txt</span>
+            </button>
+          </div>
+        </header>
+
+        <div class="review-split">
+          <div class="review-pane" id="pane-pdf">
+            <div class="pane-tab">Source filing<span class="pane-tab-num" id="pdf-page-info"></span></div>
+            <div class="pane-body" id="pdf-body"></div>
+          </div>
+          <div class="review-pane" id="pane-docx">
+            <div class="pane-tab">Transcription<span class="pane-tab-num" id="docx-status"></span></div>
+            <div class="pane-body" id="docx-body"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ──────────────────────────────── view: cascade rules ────────── -->
+      <section class="view view-rules" id="view-settings" hidden>
+        <header class="view-head anchor">
+          <div class="eyebrow">III.</div>
+          <h1 class="view-title">Cascade rules</h1>
+          <p class="view-sub">Each Docling label gets a routing ladder. The cascade tries engines in order; the first to clear your threshold wins.</p>
+        </header>
+
+        <div class="actions anchor">
+          <button class="lex-btn ghost" id="settings-reset-btn">Reload from file</button>
+          <button class="lex-btn primary" id="settings-save-btn">Enter on the record</button>
+        </div>
+
+        <div class="rules-list" id="settings-list"></div>
+      </section>
+
+    </div><!-- /canvas-inner -->
+  </main>
+</div>
+
+<!-- Error notice (sits like a clerk's stamp on the page) -->
+<div class="notice" id="error-toast" hidden>
+  <span class="notice-mark">!</span>
+  <span class="notice-body"></span>
+</div>
+
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>
