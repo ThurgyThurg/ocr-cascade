@@ -23,11 +23,14 @@ nix-shell
 # 2. Create the venv, install Python deps, pull the glm-ocr model (~2.2 GB)
 ./setup.sh
 
-# 3a. Run the web UI
+# 3. Enter the virtual python environmnet (venv)
+source venv/bin/activate
+
+# 4a. Run the web UI
 uvicorn app:app --host 127.0.0.1 --port 8765
 #     → http://127.0.0.1:8765
 
-# 3b. Or run a single document on the CLI
+# 4b. Or run a single document on the CLI
 python ocr_pipeline.py path/to/file.pdf --engine regions --output results/
 ```
 
