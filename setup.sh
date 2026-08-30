@@ -15,7 +15,7 @@ $GPU_MODE && echo "    GPU mode enabled (CUDA packages will be installed)"
 # 1. Python venv
 if [ ! -f venv/bin/activate ]; then
   echo "[1/5] Creating Python virtual environment..."
-  python -m venv venv
+  python3 -m venv venv
 else
   echo "[1/5] venv already exists, skipping."
 fi
