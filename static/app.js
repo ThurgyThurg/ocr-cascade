@@ -1204,3 +1204,20 @@ async function bootstrapDocket() {
 renderJobList();
 showView("upload");
 bootstrapDocket();
+
+// ──────────────────────────────────────────────────────── demo mode init ──
+async function initDemoMode() {
+  try {
+    const res = await fetch("/api/demo-config");
+    if (!res.ok) return;
+    const cfg = await res.json();
+    if (!cfg.demo_mode) return;
+    const banner = document.getElementById("demo-banner");
+    if (banner) banner.hidden = false;
+    if (gpuCheckbox) {
+      gpuCheckbox.checked = false;
+      gpuCheckbox.disabled = true;
+    }
+  } catch {}
+}
+initDemoMode();

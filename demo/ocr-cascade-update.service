@@ -1,0 +1,10 @@
+[Unit]
+Description=OCR Cascade Demo — pull latest code from GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/ocr-cascade
+ExecStart=/bin/bash -c 'git pull origin main && systemctl restart ocr-cascade && echo "Demo update: pulled at $(date)"'

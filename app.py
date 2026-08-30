@@ -31,6 +31,11 @@ from typing import Optional
 if os.environ.get("LQ_OCR_GPU", "").lower() not in ("1", "true", "yes", "on"):
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
+# Demo mode: set DEMO_MODE=1 to enable the public demo banner, disable GPU,
+# and restrict the available engine list to CPU-only engines.
+DEMO_MODE = os.environ.get("DEMO_MODE", "").lower() in ("1", "true", "yes", "on")
+_VISUAL_ENGINES = frozenset({"glm-ocr", "chandra"})
+
 import io
 import zipfile
 from typing import List
@@ -167,6 +172,8 @@ async def upload_pdf(
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
 
     gpu = use_gpu.lower() in ("true", "1", "on", "yes")
+    if DEMO_MODE:
+        gpu = False
     mode = mode.lower().strip()
     if mode not in ("cascade", "regions"):
         mode = "cascade"
@@ -604,6 +611,8 @@ async def upload_batch(
         raise HTTPException(status_code=400, detail="No usable PDF files.")
 
     gpu = use_gpu.lower() in ("true", "1", "on", "yes")
+    if DEMO_MODE:
+        gpu = False
     mode = mode.lower().strip()
     if mode not in ("cascade", "regions"):
         mode = "regions"
@@ -996,7 +1005,7 @@ async def delete_job(job_id: str):
 
 # Engines that the cascade can route to. Kept in display order: cheapest →
 # heaviest. The UI's "add engine" dropdown is built from this list.
-_AVAILABLE_ENGINES = [
+_ALL_ENGINES = [
     "tesseract",
     "paddleocr",
     "merge-tess-paddle",
@@ -1004,6 +1013,12 @@ _AVAILABLE_ENGINES = [
     "glm-ocr",
     "chandra",
 ]
+
+
+def _available_engines() -> list:
+    if DEMO_MODE:
+        return [e for e in _ALL_ENGINES if e not in _VISUAL_ENGINES]
+    return list(_ALL_ENGINES)
 
 
 def _yaml_path() -> Path:
@@ -1034,7 +1049,7 @@ async def get_region_config():
 
     return JSONResponse({
         "labels": labels,
-        "available_engines": _AVAILABLE_ENGINES,
+        "available_engines": _available_engines(),
     })
 
 
@@ -1057,7 +1072,7 @@ async def put_region_config(payload: dict):
         ladder = item.get("ladder")
         if not lbl or not isinstance(ladder, list):
             continue
-        ladder = [e for e in ladder if isinstance(e, str) and e in _AVAILABLE_ENGINES]
+        ladder = [e for e in ladder if isinstance(e, str) and e in _available_engines()]
         by_label[str(lbl)] = ladder
 
     path = _yaml_path()
@@ -1076,6 +1091,14 @@ async def put_region_config(payload: dict):
         yaml.safe_dump(existing, f, sort_keys=False, default_flow_style=False)
 
     return JSONResponse({"status": "ok", "labels_written": len(by_label)})
+
+
+# ── GET /api/demo-config ──────────────────────────────────────────────────────
+
+@app.get("/api/demo-config")
+async def get_demo_config():
+    """Tell the UI whether this instance is running in public demo mode."""
+    return JSONResponse({"demo_mode": DEMO_MODE})
 
 
 # ── GET / ─────────────────────────────────────────────────────────────────────

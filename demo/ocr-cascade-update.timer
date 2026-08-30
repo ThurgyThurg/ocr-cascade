@@ -1,0 +1,11 @@
+[Unit]
+Description=OCR Cascade Demo — hourly GitHub update check
+Requires=ocr-cascade-update.service
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1h
+Unit=ocr-cascade-update.service
+
+[Install]
+WantedBy=timers.target

@@ -11,13 +11,16 @@ The default config ships at `region_config.yaml` next to this module.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import yaml
 
-DEFAULT_CONFIG_PATH = Path(__file__).parent / "region_config.yaml"
+DEFAULT_CONFIG_PATH = Path(
+    os.environ.get("OCR_REGION_CONFIG") or str(Path(__file__).parent / "region_config.yaml")
+)
 
 
 @dataclass

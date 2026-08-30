@@ -1,0 +1,90 @@
+# Demo region routing configuration — CPU-only engines.
+#
+# Identical to region_config.yaml except that visual/VLM engines
+# (glm-ocr, chandra) are removed from all ladders. This is used when
+# DEMO_MODE=1 and no GPU is available.
+#
+# Set OCR_REGION_CONFIG=/path/to/demo/region_config.demo.yaml to activate.
+
+handwritten_text:
+  ladder: []
+  rationale: >
+    No CPU-only engine produces useful handwriting transcription. The result
+    will be empty for handwritten regions in demo mode.
+
+text:
+  ladder: [tesseract, merge-tess-paddle]
+
+title:
+  ladder: [tesseract, merge-tess-paddle]
+
+section_header:
+  ladder: [tesseract, merge-tess-paddle]
+
+page_header:
+  ladder: [tesseract]
+
+page_footer:
+  ladder: [tesseract]
+
+list_item:
+  ladder: [tesseract, merge-tess-paddle]
+
+caption:
+  ladder: [tesseract, merge-tess-paddle]
+
+footnote:
+  ladder: [tesseract, merge-tess-paddle]
+
+table:
+  ladder: [docling, paddleocr]
+
+picture:
+  ladder: []
+  rationale: >
+    No CPU-only engine transcribes arbitrary picture content.
+
+chart:
+  ladder: []
+
+formula:
+  ladder: [docling]
+
+code:
+  ladder: [tesseract]
+
+key_value_region:
+  ladder: [docling, tesseract]
+
+form:
+  ladder: [docling, tesseract]
+
+document_index:
+  ladder: [docling, tesseract]
+
+checkbox_selected:
+  ladder: [tesseract]
+
+checkbox_unselected:
+  ladder: [tesseract]
+
+grading_scale:
+  ladder: []
+
+empty_value:
+  ladder: []
+
+marker:
+  ladder: [tesseract]
+
+paragraph:
+  ladder: [tesseract, merge-tess-paddle]
+
+reference:
+  ladder: [tesseract, merge-tess-paddle]
+
+_uncovered:
+  ladder: [tesseract, merge-tess-paddle, docling]
+
+_default:
+  ladder: [tesseract, merge-tess-paddle]

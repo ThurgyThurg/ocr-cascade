@@ -1,0 +1,16 @@
+[Unit]
+Description=OCR Cascade Demo
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=ocr
+WorkingDirectory=/opt/ocr-cascade
+EnvironmentFile=/opt/ocr-cascade/demo/environment
+ExecStart=/opt/ocr-cascade/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8765
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

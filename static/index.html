@@ -25,6 +25,25 @@
 </script>
 <link rel="stylesheet" href="/static/app.css">
 
+<style>
+  .demo-banner {
+    position: sticky;
+    top: var(--masthead-h);
+    z-index: 50;
+    background: var(--seal);
+    color: #F4EDDB;
+    font-family: var(--font-body);
+    font-size: var(--t-sm);
+    font-weight: 500;
+    letter-spacing: 0.015em;
+    text-align: center;
+    padding: 7px 20px;
+    border-bottom: 1px solid var(--seal-hover);
+  }
+  .demo-banner strong { font-weight: 700; }
+  .demo-banner a { color: inherit; text-decoration: underline; }
+</style>
+
 <!-- pdf.js (ESM) -->
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.mjs" type="module"></script>
 <!-- JSZip MUST load before docx-preview — the UMD bundle reads window.JSZip
@@ -33,6 +52,13 @@
 <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.3.5/dist/docx-preview.min.js"></script>
 </head>
 <body>
+
+<!-- Demo banner — shown by app.js when the server reports DEMO_MODE=1 -->
+<div class="demo-banner" id="demo-banner" hidden>
+  <strong>Demo instance.</strong>
+  All documents are automatically deleted every hour.
+  Do not upload confidential or sensitive information.
+</div>
 
 <!-- ─────────────────────────────────────────────────────────── masthead ── -->
 <header class="masthead">

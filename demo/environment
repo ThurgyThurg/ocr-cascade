@@ -1,0 +1,4 @@
+# Environment variables for the ocr-cascade demo systemd service.
+# Loaded by ocr-cascade.service via EnvironmentFile=.
+DEMO_MODE=1
+OCR_REGION_CONFIG=/opt/ocr-cascade/demo/region_config.demo.yaml

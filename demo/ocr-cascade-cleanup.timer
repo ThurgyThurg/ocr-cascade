@@ -1,0 +1,11 @@
+[Unit]
+Description=OCR Cascade Demo — hourly document cleanup
+Requires=ocr-cascade-cleanup.service
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1h
+Unit=ocr-cascade-cleanup.service
+
+[Install]
+WantedBy=timers.target
